@@ -5,6 +5,16 @@ import { getTranscript } from './transcript.js';
 import { summarize } from './gemini.js';
 import { getLatestVideos } from './youtube.js';
 import { CHANNELS } from './channels.js';
+import http from 'http';
+
+
+const port = process.env.PORT || 8000; 
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('Bot is alive');
+}).listen(port, '0.0.0.0', () => {
+  console.log(`✅ Health check server is listening on port ${port}`);
+});
 
 const token = process.env.TELEGRAM_TOKEN;
 const myChatId = process.env.TG_CHAT_ID;
