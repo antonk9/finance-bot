@@ -11,5 +11,8 @@
     "node-telegram-bot-api": "^0.67.0",
     "youtube-caption-extractor": "^1.9.1",
     "youtube-transcript": "^1.2.1"
+  },
+    "scripts": {
+    "start": "node index.js"
   }
 }
