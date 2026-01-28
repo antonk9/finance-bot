@@ -1,53 +1,47 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import fs from 'fs/promises';
-import path from 'path';
 
 const execPromise = promisify(exec);
 
 export async function getTranscript(videoId) {
-  const url = `https://www.youtube.com/watch?v=${videoId}`;
-  const currentDir = process.cwd();
-  const tempBaseName = `temp_${videoId}`;
-  const tempPath = path.join(currentDir, tempBaseName);
+  const cleanId = videoId.includes('v=') ? videoId.split('v=')[1].split('&')[0] : videoId;
   
   try {
-    // 1. Скачиваем субтитры
-    const cmd = `./yt-dlp --write-auto-sub --skip-download --sub-langs "en.*" -o "${tempPath}.%(ext)s" --no-warnings "${url}"`;
-    await execPromise(cmd);
+    console.log(`📥 Вызов CLI youtube-transcript-api для ${cleanId}...`);
 
-    // 2. Ищем файл
-    const files = await fs.readdir(currentDir);
-    const subtitleFile = files.find(f => f.startsWith(tempBaseName) && f.endsWith('.vtt'));
+    // Вызываем CLI напрямую. Он выдаст JSON, который мы легко распарсим.
+    // Флаг --format text заставит его выдать чистый текст без лишней шелухи.
+    const cmd = `youtube_transcript_api ${cleanId} --format text`;
+    
+    const { stdout } = await execPromise(cmd);
 
-    if (!subtitleFile) return null;
-
-    const fullPath = path.join(currentDir, subtitleFile);
-    const rawText = await fs.readFile(fullPath, 'utf-8');
-
-    // 3. Улучшенная очистка (специально для ваших файлов)
-    const cleanText = rawText
-      .replace(/WEBVTT[\s\S]*?\n\n/g, '')           // Убираем заголовок
-      .replace(/<\d{2}:\d{2}:\d{2}\.\d{3}>/g, '')   // Убираем внутристрочные метки <00:00:01.000>
-      .replace(/\d{2}:\d{2}:\d{2}\.\d{3} -->.*/g, '') // Убираем строки таймкодов
-      .replace(/<\/?[^>]+(>|$)/g, "")                 // Убираем оставшиеся теги
-      .replace(/\n+/g, ' ')                            // Схлопываем строки
-      .replace(/\s+/g, ' ')                            // Убираем лишние пробелы
+    const cleanText = stdout
+      .replace(/\n/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
 
-    // Удаляем временный файл
-    await fs.unlink(fullPath).catch(() => {});
-
-    // Важно: проверяем, что после очистки реально остался текст
-    if (cleanText.length < 100) {
-        console.log(`⚠️ Текст слишком короткий после очистки (${cleanText.length} симв.)`);
-        return null;
+    if (cleanText.length < 50) {
+      console.log('❌ Полученный текст слишком короткий.');
+      return null;
     }
 
+    console.log(`✅ Успех! Получено ${cleanText.length} символов.`);
     return cleanText;
 
   } catch (e) {
-    console.error(`❌ Ошибка:`, e.message);
+    console.error(`❌ Ошибка CLI:`, e.message);
+    
+    // Если команда не найдена, попробуем вызвать через python3 -m
+    if (e.message.includes('not found')) {
+       console.log("🔄 CLI не в PATH, пробуем через модуль...");
+       try {
+         const fallbackCmd = `python3 -m youtube_transcript_api ${cleanId} --format text`;
+         const { stdout } = await execPromise(fallbackCmd);
+         return stdout.replace(/\s+/g, ' ').trim();
+       } catch (err2) {
+         console.error("❌ И через модуль не вышло.");
+       }
+    }
     return null;
   }
 }

@@ -18,7 +18,10 @@ http.createServer((req, res) => {
 
 const token = process.env.TELEGRAM_TOKEN;
 const myChatId = process.env.TG_CHAT_ID;
-const bot = new TelegramBot(token, { polling: true });
+const bot = new TelegramBot(token, { 
+  polling: true,
+  request: { agentOptions: { family: 4 } } 
+});
 
 const SENT_VIDEOS_FILE = './sent_videos.json';
 let sentVideos = [];
@@ -30,13 +33,13 @@ if (fs.existsSync(SENT_VIDEOS_FILE)) {
 }
 
 async function sendLongMessage(chatId, text) {
-  const maxLength = 4000;
   const chunks = text.match(/[\s\S]{1,4000}/g) || [];
   for (const chunk of chunks) {
     try {
       await bot.sendMessage(chatId, chunk, { parse_mode: 'Markdown' });
     } catch (e) {
-      await bot.sendMessage(chatId, chunk);
+      console.warn("⚠️ Markdown error, sending as plain text...");
+      await bot.sendMessage(chatId, chunk); // Отправка без разметки, если Gemini ошибся
     }
   }
 }
