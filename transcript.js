@@ -13,7 +13,7 @@ export async function getTranscript(videoId) {
   
   try {
     // 1. Скачиваем субтитры
-    const cmd = `yt-dlp --write-auto-sub --skip-download --sub-langs "en.*" -o "${tempPath}.%(ext)s" --no-warnings "${url}"`;
+    const cmd = `./yt-dlp --write-auto-sub --skip-download --sub-langs "en.*" -o "${tempPath}.%(ext)s" --no-warnings "${url}"`;
     await execPromise(cmd);
 
     // 2. Ищем файл
